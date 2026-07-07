@@ -50,3 +50,9 @@ class Producto(Base):
         "Categoria",
         back_populates="productos"
     )
+
+    alertas = relationship(
+        "Alerta",
+        back_populates="producto",
+        cascade="all, delete-orphan"
+    )
