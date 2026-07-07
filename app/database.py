@@ -1,32 +1,47 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from dotenv import load_dotenv
 import os
 
-# Cargar variables del archivo .env
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import declarative_base, sessionmaker
+
 load_dotenv()
 
-# Obtener la URL de conexión
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./inventory.db")
 
-# Crear el motor de conexión
-engine = create_engine(
-    DATABASE_URL,
-    echo=True
-)
 
-# Crear las sesiones para interactuar con la BD
+def _build_engine(database_url: str):
+    if database_url.startswith("sqlite"):
+        return create_engine(
+            database_url,
+            connect_args={"check_same_thread": False},
+            echo=True
+        )
+
+    try:
+        engine = create_engine(database_url, echo=True)
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return engine
+    except OperationalError:
+        return create_engine(
+            "sqlite:///./inventory.db",
+            connect_args={"check_same_thread": False},
+            echo=True
+        )
+
+
+engine = _build_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
 
-# Clase base para los modelos
 Base = declarative_base()
 
 
-# Dependencia para obtener una sesión de base de datos
 def get_db():
     db = SessionLocal()
     try:
