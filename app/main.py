@@ -1,14 +1,7 @@
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
-
-from app.database import Base, engine, get_db
-from app.models.categoria import Categoria
-from app.models.producto import Producto
-from app.routers import categorias, productos
+from app.database import Base, engine
+from app.routers import alertas, categorias, productos
 
 Base.metadata.create_all(bind=engine)
 
@@ -26,6 +19,7 @@ app.mount(
 
 app.include_router(categorias.router)
 app.include_router(productos.router)
+app.include_router(alertas.router)
 
 
 def _render_template(template_name: str) -> HTMLResponse:
