@@ -253,11 +253,15 @@ async function loadModule(module) {
         try {
             const response = await fetch("/api/dashboard");
             const data = await response.json();
+            const productosCount = productosState.length || Number(data?.productos || 0);
+            const categoriasCount = categoriasState.length || Number(data?.categorias || 0);
+            const alertasCount = Number(data?.alertas || 0);
+
             content.innerHTML = `
                 <div class="cards">
-                    <div class="card"><i class="fa-solid fa-box"></i><h2>${data.productos}</h2><p>Productos</p></div>
-                    <div class="card"><i class="fa-solid fa-layer-group"></i><h2>${data.categorias}</h2><p>Categorías</p></div>
-                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>${data.alertas}</h2><p>Alertas</p></div>
+                    <div class="card"><i class="fa-solid fa-box"></i><h2>${productosCount}</h2><p>Productos</p></div>
+                    <div class="card"><i class="fa-solid fa-layer-group"></i><h2>${categoriasCount}</h2><p>Categorías</p></div>
+                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>${alertasCount}</h2><p>Alertas</p></div>
                     <div class="card"><i class="fa-solid fa-dollar-sign"></i><h2>$0</h2><p>Inventario</p></div>
                 </div>
                 <div class="module">
@@ -266,7 +270,20 @@ async function loadModule(module) {
                 </div>
             `;
         } catch (error) {
-            content.innerHTML = `<p>No se pudo cargar el dashboard.</p>`;
+            const productosCount = productosState.length;
+            const categoriasCount = categoriasState.length;
+            content.innerHTML = `
+                <div class="cards">
+                    <div class="card"><i class="fa-solid fa-box"></i><h2>${productosCount}</h2><p>Productos</p></div>
+                    <div class="card"><i class="fa-solid fa-layer-group"></i><h2>${categoriasCount}</h2><p>Categorías</p></div>
+                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>0</h2><p>Alertas</p></div>
+                    <div class="card"><i class="fa-solid fa-dollar-sign"></i><h2>$0</h2><p>Inventario</p></div>
+                </div>
+                <div class="module">
+                    <h2>📦 Estado general</h2>
+                    <p>No se pudo cargar el dashboard, pero se muestran los datos locales.</p>
+                </div>
+            `;
         }
         return;
     }
