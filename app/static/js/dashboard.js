@@ -255,7 +255,7 @@ async function loadModule(module) {
             const data = await response.json();
             const productosCount = productosState.length || Number(data?.productos || 0);
             const categoriasCount = categoriasState.length || Number(data?.categorias || 0);
-            const alertasCount = Number(data?.alertas || 0);
+            const alertasCount = productosState.filter((producto) => Number(producto.stock) <= 5).length;
 
             content.innerHTML = `
                 <div class="cards">
@@ -276,7 +276,7 @@ async function loadModule(module) {
                 <div class="cards">
                     <div class="card"><i class="fa-solid fa-box"></i><h2>${productosCount}</h2><p>Productos</p></div>
                     <div class="card"><i class="fa-solid fa-layer-group"></i><h2>${categoriasCount}</h2><p>Categorías</p></div>
-                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>0</h2><p>Alertas</p></div>
+                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>${productosState.filter((producto) => Number(producto.stock) <= 5).length}</h2><p>Alertas</p></div>
                     <div class="card"><i class="fa-solid fa-dollar-sign"></i><h2>$0</h2><p>Inventario</p></div>
                 </div>
                 <div class="module">
