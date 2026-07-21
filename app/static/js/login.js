@@ -52,6 +52,7 @@ if (form) {
                 throw new Error(data.message || "Error de autenticación");
             }
 
+            localStorage.setItem("isAuthenticated", "true");
             window.location.href = data.redirect || "/dashboard";
         } catch (error) {
             document.getElementById("passwordError").textContent = error.message;
