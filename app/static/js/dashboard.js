@@ -39,20 +39,66 @@ function formatearPrecio(precio) {
     }).format(precio);
 }
 
-function renderProductosModule() {
+async function obtenerProductosApi() {
+    const response = await fetch("/productos");
+    if (!response.ok) {
+        throw new Error("No se pudieron cargar los productos desde el servidor.");
+    }
+    return response.json();
+}
+
+async function crearProductoApi(producto) {
+    const response = await fetch("/productos", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(producto)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "No se pudo guardar el producto.");
+    }
+
+    return response.json();
+}
+
+async function renderProductosModule() {
     const content = document.getElementById("main-content");
     const title = document.getElementById("title");
 
     title.innerHTML = "Productos";
 
-    const rows = productosState.map((producto) => `
+    let productos = productosState;
+    let categorias = categoriasState;
+    let errorMessage = null;
+
+    try {
+        const [productosApi, categoriasApi] = await Promise.all([
+            obtenerProductosApi(),
+            obtenerCategoriasApi()
+        ]);
+        productos = productosApi;
+        categorias = categoriasApi;
+        productosState = productos;
+        categoriasState = categorias;
+    } catch (error) {
+        errorMessage = error.message;
+    }
+
+    const rows = (productos || productosState).map((producto) => `
         <tr>
             <td>${producto.id}</td>
-            <td>${producto.producto}</td>
-            <td>${producto.categoria}</td>
+            <td>${producto.nombre}</td>
+            <td>${producto.categoria?.nombre || producto.categoria || "Sin categoría"}</td>
             <td>${producto.stock}</td>
             <td>${formatearPrecio(producto.precio)}</td>
         </tr>
+    `).join("");
+
+    const categoryOptions = (categorias || categoriasState).map((cat) => `
+        <option value="${cat.id}">${cat.nombre}</option>
     `).join("");
 
     content.innerHTML = `
@@ -61,6 +107,7 @@ function renderProductosModule() {
                 <div>
                     <h2>📦 Gestión de Productos</h2>
                     <p>Lista de productos disponible para controlar el inventario.</p>
+                    ${errorMessage ? `<p class="error-message">${errorMessage}</p>` : ""}
                 </div>
                 <button type="button" class="btn-primary" id="show-product-form"><i class="fa-solid fa-plus"></i> Nuevo producto</button>
             </div>
@@ -69,11 +116,14 @@ function renderProductosModule() {
                 <div class="form-grid">
                     <label>
                         Producto
-                        <input type="text" name="producto" placeholder="Nombre del producto" required>
+                        <input type="text" name="nombre" placeholder="Nombre del producto" required>
                     </label>
                     <label>
                         Categoría
-                        <input type="text" name="categoria" placeholder="Ej. Computadoras" required>
+                        <select name="categoria_id" required>
+                            <option value="">Selecciona una categoría</option>
+                            ${categoryOptions}
+                        </select>
                     </label>
                     <label>
                         Stock
@@ -110,7 +160,7 @@ function renderProductosModule() {
     const form = document.getElementById("product-form");
     document.getElementById("show-product-form")?.addEventListener("click", () => {
         form?.classList.remove("hidden");
-        form?.querySelector("input[name='producto']")?.focus();
+        form?.querySelector("input[name='nombre']")?.focus();
     });
 
     document.getElementById("cancel-product-form")?.addEventListener("click", () => {
@@ -118,23 +168,28 @@ function renderProductosModule() {
         form?.classList.add("hidden");
     });
 
-    form?.addEventListener("submit", (event) => {
+    form?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const data = new FormData(form);
         const nuevoProducto = {
-            id: productosState.length ? Math.max(...productosState.map((item) => item.id)) + 1 : 1,
-            producto: data.get("producto").toString().trim(),
-            categoria: data.get("categoria").toString().trim(),
+            nombre: data.get("nombre").toString().trim(),
+            precio: Number(data.get("precio")),
             stock: Number(data.get("stock")),
-            precio: Number(data.get("precio"))
+            stock_minimo: 1,
+            categoria_id: Number(data.get("categoria_id"))
         };
 
-        if (!nuevoProducto.producto || !nuevoProducto.categoria || Number.isNaN(nuevoProducto.stock) || Number.isNaN(nuevoProducto.precio)) {
+        if (!nuevoProducto.nombre || Number.isNaN(nuevoProducto.precio) || Number.isNaN(nuevoProducto.stock) || Number.isNaN(nuevoProducto.categoria_id)) {
             return;
         }
 
-        productosState = [nuevoProducto, ...productosState];
-        renderProductosModule();
+        try {
+            const productoGuardado = await crearProductoApi(nuevoProducto);
+            productosState = [productoGuardado, ...productosState.filter((p) => p.id !== productoGuardado.id)];
+            renderProductosModule();
+        } catch (error) {
+            alert(error.message);
+        }
     });
 }
 
@@ -161,17 +216,52 @@ const categoriasIniciales = [
 
 let categoriasState = [...categoriasIniciales];
 
-function renderCategoriasModule() {
+async function obtenerCategoriasApi() {
+    const response = await fetch("/categorias");
+    if (!response.ok) {
+        throw new Error("No se pudieron cargar las categorías desde el servidor.");
+    }
+    return response.json();
+}
+
+async function crearCategoriaApi(categoria) {
+    const response = await fetch("/categorias", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(categoria)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "No se pudo guardar la categoría.");
+    }
+
+    return response.json();
+}
+
+async function renderCategoriasModule() {
     const content = document.getElementById("main-content");
     const title = document.getElementById("title");
 
     title.innerHTML = "Categorías";
 
-    const rows = categoriasState.map((cat) => `
+    let categorias = categoriasState;
+    let errorMessage = null;
+
+    try {
+        categorias = await obtenerCategoriasApi();
+        categoriasState = categorias;
+    } catch (error) {
+        errorMessage = error.message;
+    }
+
+    const rows = (categorias || categoriasState).map((cat) => `
         <tr>
             <td>${cat.id}</td>
             <td>${cat.nombre}</td>
-            <td>${cat.descripcion}</td>
+            <td>${cat.descripcion || ""}</td>
         </tr>
     `).join("");
 
@@ -181,6 +271,7 @@ function renderCategoriasModule() {
                 <div>
                     <h2>🗂️ Gestión de Categorías</h2>
                     <p>Lista de categorías del inventario.</p>
+                    ${errorMessage ? `<p class="error-message">${errorMessage}</p>` : ""}
                 </div>
                 <button type="button" class="btn-primary" id="show-category-form"><i class="fa-solid fa-plus"></i> Nueva categoría</button>
             </div>
@@ -193,7 +284,7 @@ function renderCategoriasModule() {
                     </label>
                     <label>
                         Descripción
-                        <input type="text" name="descripcion" placeholder="Breve descripción" required>
+                        <input type="text" name="descripcion" placeholder="Breve descripción">
                     </label>
                 </div>
                 <div class="form-actions">
@@ -228,19 +319,23 @@ function renderCategoriasModule() {
         form?.classList.add("hidden");
     });
 
-    form?.addEventListener("submit", (event) => {
+    form?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const data = new FormData(form);
         const nuevaCat = {
-            id: categoriasState.length ? Math.max(...categoriasState.map((c) => c.id)) + 1 : 1,
             nombre: data.get("nombre").toString().trim(),
-            descripcion: data.get("descripcion").toString().trim()
+            descripcion: data.get("descripcion").toString().trim() || null
         };
 
         if (!nuevaCat.nombre) return;
 
-        categoriasState = [nuevaCat, ...categoriasState];
-        renderCategoriasModule();
+        try {
+            const categoriaGuardada = await crearCategoriaApi(nuevaCat);
+            categoriasState = [categoriaGuardada, ...categoriasState.filter((c) => c.id !== categoriaGuardada.id)];
+            renderCategoriasModule();
+        } catch (error) {
+            alert(error.message);
+        }
     });
 }
 
@@ -289,12 +384,12 @@ async function loadModule(module) {
     }
 
     if (module === "productos") {
-        renderProductosModule();
+        await renderProductosModule();
         return;
     }
 
     if (module === "categorias") {
-        renderCategoriasModule();
+        await renderCategoriasModule();
         return;
     }
 
