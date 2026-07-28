@@ -299,28 +299,6 @@ td{
     color:#64748b;
 }
 
-.btn-primary,
-.btn-secondary{
-    border:none;
-    border-radius:10px;
-    padding:10px 15px;
-    font-weight:600;
-    cursor:pointer;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-}
-
-.btn-primary{
-    background:#2563eb;
-    color:white;
-}
-
-.btn-secondary{
-    background:#e2e8f0;
-    color:#334155;
-}
-
 .module-actions{
     display:flex;
     align-items:center;
@@ -364,11 +342,32 @@ td{
     color:#1d4ed8;
 }
 
+.btn-primary,
+.btn-secondary{
+    border:none;
+    border-radius:10px;
+    padding:10px 15px;
+    font-weight:600;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+}
+
 .btn-secondary.small{
     padding:7px 10px;
     font-size:13px;
 }
 
+.btn-primary{
+    background:#2563eb;
+    color:white;
+}
+
+.btn-secondary{
+    background:#e2e8f0;
+    color:#334155;
+}
 .product-focus-banner{
     display:flex;
     align-items:center;
@@ -395,10 +394,6 @@ td{
     border-radius:12px;
     padding:16px;
     margin-bottom:20px;
-}
-
-.product-form.hidden{
-    display:none;
 }
 
 .form-grid{

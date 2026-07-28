@@ -43,9 +43,18 @@
                         <i class="fa-solid fa-clock"></i>
                         <span id="hora">00:00:00</span>
                     </div>
-                    <div class="notification">
-                        <i class="fa-solid fa-bell"></i>
-                        <span>3</span>
+                    <div class="notification-wrapper">
+                        <button type="button" class="notification" id="notificationToggle" aria-expanded="false" aria-controls="notificationPanel">
+                            <i class="fa-solid fa-bell"></i>
+                            <span id="notificationCount">0</span>
+                        </button>
+                        <div id="notificationPanel" class="notification-panel hidden" role="dialog" aria-label="Notificaciones">
+                            <div class="notification-panel-header">
+                                <h3>Notificaciones</h3>
+                                <span>Stock bajo</span>
+                            </div>
+                            <div id="notificationList" class="notification-list"></div>
+                        </div>
                     </div>
                     <div class="profile">
                         <img src="https://i.pravatar.cc/45">

@@ -1,3 +1,4 @@
+// Productos iniciales (estado local)
 const productosIniciales = [
     { id: 1, producto: "Laptop HP ProBook 450", categoria: "Computadoras", stock: 15, precio: 15000 },
     { id: 2, producto: "Mouse Logitech M185", categoria: "Accesorios", stock: 25, precio: 350 },
@@ -16,16 +17,39 @@ const productosIniciales = [
     { id: 15, producto: "Proyector Epson X49", categoria: "Proyectores", stock: 3, precio: 9800 }
 ];
 
+// Estado local
 let productosState = [...productosIniciales];
 let productosSortMode = "default";
 let productosFocusId = null;
+
+// Categorías iniciales y estado
+const categoriasIniciales = [
+    { id: 1, nombre: "Computadoras", descripcion: "Equipos de escritorio y portátiles" },
+    { id: 2, nombre: "Monitores", descripcion: "Pantallas y monitores" },
+    { id: 3, nombre: "Accesorios", descripcion: "Mouse, teclados, cámaras y periféricos" },
+    { id: 4, nombre: "Componentes", descripcion: "RAM, tarjetas, procesadores y hardware interno" },
+    { id: 5, nombre: "Almacenamiento", descripcion: "SSD, HDD y memorias externas" },
+    { id: 6, nombre: "Redes", descripcion: "Routers, switches y puntos de acceso" },
+    { id: 7, nombre: "Impresoras", descripcion: "Impresoras y multifuncionales" },
+    { id: 8, nombre: "Energía", descripcion: "UPS, reguladores y baterías" },
+    { id: 9, nombre: "Audio", descripcion: "Bocinas, audífonos y micrófonos" },
+    { id: 10, nombre: "Proyectores", descripcion: "Equipos de proyección" },
+    { id: 11, nombre: "Software", descripcion: "Licencias y programas" },
+    { id: 12, nombre: "Consumibles", descripcion: "Tóner, tinta, papel y suministros" },
+    { id: 13, nombre: "Mobiliario", descripcion: "Escritorios, sillas y muebles" },
+    { id: 14, nombre: "Seguridad", descripcion: "Cámaras, DVR y controles de acceso" },
+    { id: 15, nombre: "Herramientas", descripcion: "Kits de mantenimiento y reparación" }
+];
+
+let categoriasState = [...categoriasIniciales];
 
 function actualizarHora() {
     const fecha = new Date();
     const hora = fecha.getHours().toString().padStart(2, "0");
     const minutos = fecha.getMinutes().toString().padStart(2, "0");
     const segundos = fecha.getSeconds().toString().padStart(2, "0");
-    document.getElementById("hora").innerHTML = `${hora}:${minutos}:${segundos}`;
+    const el = document.getElementById("hora");
+    if (el) el.innerHTML = `${hora}:${minutos}:${segundos}`;
 }
 
 function cerrarSesion() {
@@ -41,31 +65,6 @@ function formatearPrecio(precio) {
     }).format(precio);
 }
 
-async function obtenerProductosApi() {
-    const response = await fetch("/productos");
-    if (!response.ok) {
-        throw new Error("No se pudieron cargar los productos desde el servidor.");
-    }
-    return response.json();
-}
-
-async function crearProductoApi(producto) {
-    const response = await fetch("/productos", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(producto)
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "No se pudo guardar el producto.");
-    }
-
-    return response.json();
-}
-
 function getProductosOrdenados(productos = productosState) {
     const lista = [...productos];
 
@@ -79,9 +78,9 @@ function getProductosOrdenados(productos = productosState) {
         case "precio-desc":
             return lista.sort((a, b) => Number(b.precio) - Number(a.precio));
         case "nombre-asc":
-            return lista.sort((a, b) => (a.nombre || a.producto || "").toString().localeCompare((b.nombre || b.producto || "").toString()));
+            return lista.sort((a, b) => (a.producto || "").toString().localeCompare((b.producto || "").toString()));
         case "categoria-asc":
-            return lista.sort((a, b) => ((a.categoria?.nombre || a.categoria || "") .toString()).localeCompare((b.categoria?.nombre || b.categoria || "").toString()));
+            return lista.sort((a, b) => (a.categoria || "").toString().localeCompare((b.categoria || "").toString()));
         default:
             return lista;
     }
@@ -93,11 +92,9 @@ function getAlertasProductos(productos = productosState) {
 
 function getProductosParaMostrar(productos = productosState) {
     const lista = getProductosOrdenados(productos);
-
     if (productosFocusId !== null) {
         return lista.filter((producto) => Number(producto.id) === Number(productosFocusId));
     }
-
     return lista;
 }
 
@@ -107,9 +104,7 @@ function renderNotificationsPanel() {
     const list = document.getElementById("notificationList");
     const toggle = document.getElementById("notificationToggle");
 
-    if (!badge || !panel || !list || !toggle) {
-        return;
-    }
+    if (!badge || !panel || !list || !toggle) return;
 
     const alertas = getAlertasProductos();
     const count = alertas.length;
@@ -122,55 +117,63 @@ function renderNotificationsPanel() {
         return;
     }
 
-    list.innerHTML = alertas.map((producto) => {
-        const nombre = producto.nombre || producto.producto || "Producto";
-        return `
+    list.innerHTML = alertas.map((producto) => `
         <button type="button" class="notification-item notification-link" data-product-id="${producto.id}">
-            <div class="notification-title">${nombre}</div>
+            <div class="notification-title">${producto.producto}</div>
             <div class="notification-meta">Stock bajo: ${producto.stock} unidades</div>
             <span class="notification-link-text">Ver producto</span>
         </button>
-    `;
-    }).join("");
+    `).join("");
 
     list.querySelectorAll("[data-product-id]").forEach((button) => {
         button.addEventListener("click", () => {
             productosFocusId = Number(button.getAttribute("data-product-id"));
             panel.classList.add("hidden");
             toggle.setAttribute("aria-expanded", "false");
-            loadModule("productos");
+            renderProductosModule();
         });
     });
 }
 
-async function renderProductosModule() {
+// Mostrar errores en el DOM para facilitar debugging cuando el script falle
+window.addEventListener('error', (ev) => {
+    const main = document.getElementById('main-content');
+    if (main) {
+        main.innerHTML = `<div class="module"><p style="color:darkred">Error JS: ${ev.message}</p></div>`;
+    }
+});
+
+// Control para mostrar/ocultar panel de notificaciones
+document.addEventListener('click', (ev) => {
+    const panel = document.getElementById('notificationPanel');
+    const toggle = document.getElementById('notificationToggle');
+    if (!panel || !toggle) return;
+    if (toggle.contains(ev.target)) {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        panel.classList.toggle('hidden');
+        toggle.setAttribute('aria-expanded', String(!expanded));
+    } else if (!panel.contains(ev.target)) {
+        panel.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+});
+
+// (loadModule está definido más abajo con más funcionalidades)
+
+function renderProductosModule() {
     const content = document.getElementById("main-content");
     const title = document.getElementById("title");
+    if (!content || !title) return;
 
     title.innerHTML = "Productos";
 
-    let productos = productosState;
-    let categorias = categoriasState;
-    let errorMessage = null;
+    const productosParaMostrar = getProductosParaMostrar();
 
-    try {
-        const [productosApi, categoriasApi] = await Promise.all([
-            obtenerProductosApi(),
-            obtenerCategoriasApi()
-        ]);
-        productos = productosApi;
-        categorias = categoriasApi;
-        productosState = productos;
-        categoriasState = categorias;
-    } catch (error) {
-        errorMessage = error.message;
-    }
-
-    const productosParaMostrar = getProductosParaMostrar(productos || productosState);
-
-    const rows = (productosParaMostrar || []).map((producto) => {
-        const nombre = producto.nombre || producto.producto || "Sin nombre";
-        const categoriaNombre = producto.categoria?.nombre || producto.categoria || "Sin categoría";
+    const rows = productosParaMostrar.map((producto) => {
+        const nombre = producto.producto || "Sin nombre";
+        const categoriaNombre = typeof producto.categoria === 'number'
+            ? (categoriasState.find(c => Number(c.id) === Number(producto.categoria)) || {}).nombre || "Sin categoría"
+            : producto.categoria || "Sin categoría";
         const highlighted = (productosFocusId !== null && Number(producto.id) === Number(productosFocusId)) ? "highlighted-row" : "";
         return `
         <tr class="${highlighted}">
@@ -183,7 +186,7 @@ async function renderProductosModule() {
     `;
     }).join("");
 
-    const categoryOptions = (categorias || categoriasState).map((cat) => `
+    const categoryOptions = categoriasState.map((cat) => `
         <option value="${cat.id}">${cat.nombre}</option>
     `).join("");
 
@@ -193,7 +196,6 @@ async function renderProductosModule() {
                 <div>
                     <h2>📦 Gestión de Productos</h2>
                     <p>Lista de productos disponible para controlar el inventario.</p>
-                    ${errorMessage ? `<p class="error-message">${errorMessage}</p>` : ""}
                 </div>
                 <div class="module-actions">
                     <div class="filter-wrapper">
@@ -294,54 +296,37 @@ async function renderProductosModule() {
         });
     });
 
-    form?.addEventListener("submit", async (event) => {
+    form?.addEventListener("submit", (event) => {
         event.preventDefault();
         const data = new FormData(form);
+        const categoriaId = Number(data.get("categoria_id"));
+        const categoriaObj = categoriasState.find(c => Number(c.id) === categoriaId);
         const nuevoProducto = {
-            nombre: data.get("nombre").toString().trim(),
+            id: Math.max(0, ...productosState.map(p => Number(p.id))) + 1,
+            producto: data.get("nombre").toString().trim(),
             precio: Number(data.get("precio")),
             stock: Number(data.get("stock")),
-            stock_minimo: 1,
-            categoria_id: Number(data.get("categoria_id"))
+            categoria: categoriaObj ? categoriaObj.nombre : (data.get("categoria_id")?.toString() || ""),
         };
 
-        if (!nuevoProducto.nombre || Number.isNaN(nuevoProducto.precio) || Number.isNaN(nuevoProducto.stock) || Number.isNaN(nuevoProducto.categoria_id)) {
+        if (!nuevoProducto.producto || Number.isNaN(nuevoProducto.precio) || Number.isNaN(nuevoProducto.stock)) {
             return;
         }
 
-        try {
-            const productoGuardado = await crearProductoApi(nuevoProducto);
-            productosState = [productoGuardado, ...productosState.filter((p) => p.id !== productoGuardado.id)];
-            renderNotificationsPanel();
-            renderProductosModule();
-        } catch (error) {
-            alert(error.message);
-        }
+        productosState = [nuevoProducto, ...productosState];
+        form?.reset();
+        form?.classList.add("hidden");
+        renderNotificationsPanel();
+        renderProductosModule();
     });
 }
 
 setInterval(actualizarHora, 1000);
 actualizarHora();
 
-const categoriasIniciales = [
-    { id: 1, nombre: "Computadoras", descripcion: "Equipos de escritorio y portátiles" },
-    { id: 2, nombre: "Monitores", descripcion: "Pantallas y monitores" },
-    { id: 3, nombre: "Accesorios", descripcion: "Mouse, teclados, cámaras y periféricos" },
-    { id: 4, nombre: "Componentes", descripcion: "RAM, tarjetas, procesadores y hardware interno" },
-    { id: 5, nombre: "Almacenamiento", descripcion: "SSD, HDD y memorias externas" },
-    { id: 6, nombre: "Redes", descripcion: "Routers, switches y puntos de acceso" },
-    { id: 7, nombre: "Impresoras", descripcion: "Impresoras y multifuncionales" },
-    { id: 8, nombre: "Energía", descripcion: "UPS, reguladores y baterías" },
-    { id: 9, nombre: "Audio", descripcion: "Bocinas, audífonos y micrófonos" },
-    { id: 10, nombre: "Proyectores", descripcion: "Equipos de proyección" },
-    { id: 11, nombre: "Software", descripcion: "Licencias y programas" },
-    { id: 12, nombre: "Consumibles", descripcion: "Tóner, tinta, papel y suministros" },
-    { id: 13, nombre: "Mobiliario", descripcion: "Escritorios, sillas y muebles" },
-    { id: 14, nombre: "Seguridad", descripcion: "Cámaras, DVR y controles de acceso" },
-    { id: 15, nombre: "Herramientas", descripcion: "Kits de mantenimiento y reparación" }
-];
-
-let categoriasState = [...categoriasIniciales];
+// Inicial render de módulos (se hace también en DOMContentLoaded)
+renderNotificationsPanel();
+renderProductosModule();
 
 async function obtenerCategoriasApi() {
     const response = await fetch("/categorias");
