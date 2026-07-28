@@ -17,6 +17,8 @@ const productosIniciales = [
 ];
 
 let productosState = [...productosIniciales];
+let productosSortMode = "default";
+let productosFocusId = null;
 
 function actualizarHora() {
     const fecha = new Date();
@@ -64,6 +66,83 @@ async function crearProductoApi(producto) {
     return response.json();
 }
 
+function getProductosOrdenados(productos = productosState) {
+    const lista = [...productos];
+
+    switch (productosSortMode) {
+        case "stock-asc":
+            return lista.sort((a, b) => Number(a.stock) - Number(b.stock));
+        case "stock-desc":
+            return lista.sort((a, b) => Number(b.stock) - Number(a.stock));
+        case "precio-asc":
+            return lista.sort((a, b) => Number(a.precio) - Number(b.precio));
+        case "precio-desc":
+            return lista.sort((a, b) => Number(b.precio) - Number(a.precio));
+        case "nombre-asc":
+            return lista.sort((a, b) => (a.nombre || a.producto || "").toString().localeCompare((b.nombre || b.producto || "").toString()));
+        case "categoria-asc":
+            return lista.sort((a, b) => ((a.categoria?.nombre || a.categoria || "") .toString()).localeCompare((b.categoria?.nombre || b.categoria || "").toString()));
+        default:
+            return lista;
+    }
+}
+
+function getAlertasProductos(productos = productosState) {
+    return productos.filter((producto) => Number(producto.stock) <= 5);
+}
+
+function getProductosParaMostrar(productos = productosState) {
+    const lista = getProductosOrdenados(productos);
+
+    if (productosFocusId !== null) {
+        return lista.filter((producto) => Number(producto.id) === Number(productosFocusId));
+    }
+
+    return lista;
+}
+
+function renderNotificationsPanel() {
+    const badge = document.getElementById("notificationCount");
+    const panel = document.getElementById("notificationPanel");
+    const list = document.getElementById("notificationList");
+    const toggle = document.getElementById("notificationToggle");
+
+    if (!badge || !panel || !list || !toggle) {
+        return;
+    }
+
+    const alertas = getAlertasProductos();
+    const count = alertas.length;
+
+    badge.textContent = count;
+    badge.classList.toggle("is-hidden", count === 0);
+
+    if (count === 0) {
+        list.innerHTML = '<div class="notification-empty">No hay alertas por el momento.</div>';
+        return;
+    }
+
+    list.innerHTML = alertas.map((producto) => {
+        const nombre = producto.nombre || producto.producto || "Producto";
+        return `
+        <button type="button" class="notification-item notification-link" data-product-id="${producto.id}">
+            <div class="notification-title">${nombre}</div>
+            <div class="notification-meta">Stock bajo: ${producto.stock} unidades</div>
+            <span class="notification-link-text">Ver producto</span>
+        </button>
+    `;
+    }).join("");
+
+    list.querySelectorAll("[data-product-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+            productosFocusId = Number(button.getAttribute("data-product-id"));
+            panel.classList.add("hidden");
+            toggle.setAttribute("aria-expanded", "false");
+            loadModule("productos");
+        });
+    });
+}
+
 async function renderProductosModule() {
     const content = document.getElementById("main-content");
     const title = document.getElementById("title");
@@ -87,15 +166,22 @@ async function renderProductosModule() {
         errorMessage = error.message;
     }
 
-    const rows = (productos || productosState).map((producto) => `
-        <tr>
+    const productosParaMostrar = getProductosParaMostrar(productos || productosState);
+
+    const rows = (productosParaMostrar || []).map((producto) => {
+        const nombre = producto.nombre || producto.producto || "Sin nombre";
+        const categoriaNombre = producto.categoria?.nombre || producto.categoria || "Sin categoría";
+        const highlighted = (productosFocusId !== null && Number(producto.id) === Number(productosFocusId)) ? "highlighted-row" : "";
+        return `
+        <tr class="${highlighted}">
             <td>${producto.id}</td>
-            <td>${producto.nombre}</td>
-            <td>${producto.categoria?.nombre || producto.categoria || "Sin categoría"}</td>
+            <td>${nombre}</td>
+            <td>${categoriaNombre}</td>
             <td>${producto.stock}</td>
             <td>${formatearPrecio(producto.precio)}</td>
         </tr>
-    `).join("");
+    `;
+    }).join("");
 
     const categoryOptions = (categorias || categoriasState).map((cat) => `
         <option value="${cat.id}">${cat.nombre}</option>
@@ -109,8 +195,30 @@ async function renderProductosModule() {
                     <p>Lista de productos disponible para controlar el inventario.</p>
                     ${errorMessage ? `<p class="error-message">${errorMessage}</p>` : ""}
                 </div>
-                <button type="button" class="btn-primary" id="show-product-form"><i class="fa-solid fa-plus"></i> Nuevo producto</button>
+                <div class="module-actions">
+                    <div class="filter-wrapper">
+                        <button type="button" class="btn-secondary" id="toggle-product-filters"><i class="fa-solid fa-sliders"></i> Filtrar</button>
+                        <div id="product-filters" class="filter-menu hidden">
+                            <button type="button" class="filter-option ${productosSortMode === "default" ? "active" : ""}" data-sort-option="default">Sin filtros</button>
+                            <button type="button" class="filter-option ${productosSortMode === "stock-desc" ? "active" : ""}" data-sort-option="stock-desc">Stock: mayor a menor</button>
+                            <button type="button" class="filter-option ${productosSortMode === "stock-asc" ? "active" : ""}" data-sort-option="stock-asc">Stock: menor a mayor</button>
+                            <button type="button" class="filter-option ${productosSortMode === "precio-desc" ? "active" : ""}" data-sort-option="precio-desc">Precio: mayor a menor</button>
+                            <button type="button" class="filter-option ${productosSortMode === "precio-asc" ? "active" : ""}" data-sort-option="precio-asc">Precio: menor a mayor</button>
+                            <button type="button" class="filter-option ${productosSortMode === "nombre-asc" ? "active" : ""}" data-sort-option="nombre-asc">Nombre: A-Z</button>
+                            <button type="button" class="filter-option ${productosSortMode === "categoria-asc" ? "active" : ""}" data-sort-option="categoria-asc">Categoría: A-Z</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-primary" id="show-product-form"><i class="fa-solid fa-plus"></i> Nuevo producto</button>
+                </div>
             </div>
+
+            ${productosFocusId !== null ? `
+                <div class="product-focus-banner">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Mostrando el producto seleccionado desde la alerta de stock bajo.</span>
+                    <button type="button" class="btn-secondary small" id="clear-product-focus">Ver todos</button>
+                </div>
+            ` : ""}
 
             <form id="product-form" class="product-form hidden">
                 <div class="form-grid">
@@ -168,6 +276,24 @@ async function renderProductosModule() {
         form?.classList.add("hidden");
     });
 
+    document.getElementById("clear-product-focus")?.addEventListener("click", () => {
+        productosFocusId = null;
+        renderProductosModule();
+    });
+
+    document.getElementById("toggle-product-filters")?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const panel = document.getElementById("product-filters");
+        panel?.classList.toggle("hidden");
+    });
+
+    document.querySelectorAll("[data-sort-option]").forEach((button) => {
+        button.addEventListener("click", () => {
+            productosSortMode = button.getAttribute("data-sort-option") || "default";
+            renderProductosModule();
+        });
+    });
+
     form?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const data = new FormData(form);
@@ -186,6 +312,7 @@ async function renderProductosModule() {
         try {
             const productoGuardado = await crearProductoApi(nuevoProducto);
             productosState = [productoGuardado, ...productosState.filter((p) => p.id !== productoGuardado.id)];
+            renderNotificationsPanel();
             renderProductosModule();
         } catch (error) {
             alert(error.message);
@@ -350,7 +477,7 @@ async function loadModule(module) {
             const data = await response.json();
             const productosCount = productosState.length || Number(data?.productos || 0);
             const categoriasCount = categoriasState.length || Number(data?.categorias || 0);
-            const alertasCount = productosState.filter((producto) => Number(producto.stock) <= 5).length;
+            const alertasCount = getAlertasProductos().length;
 
             content.innerHTML = `
                 <div class="cards">
@@ -371,7 +498,7 @@ async function loadModule(module) {
                 <div class="cards">
                     <div class="card"><i class="fa-solid fa-box"></i><h2>${productosCount}</h2><p>Productos</p></div>
                     <div class="card"><i class="fa-solid fa-layer-group"></i><h2>${categoriasCount}</h2><p>Categorías</p></div>
-                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>${productosState.filter((producto) => Number(producto.stock) <= 5).length}</h2><p>Alertas</p></div>
+                    <div class="card"><i class="fa-solid fa-triangle-exclamation"></i><h2>${getAlertasProductos().length}</h2><p>Alertas</p></div>
                     <div class="card"><i class="fa-solid fa-dollar-sign"></i><h2>$0</h2><p>Inventario</p></div>
                 </div>
                 <div class="module">
@@ -411,5 +538,46 @@ document.addEventListener("DOMContentLoaded", () => {
         logoutBtn.addEventListener("click", cerrarSesion);
     }
 
+    const notificationToggle = document.getElementById("notificationToggle");
+    notificationToggle?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const panel = document.getElementById("notificationPanel");
+        if (!panel) {
+            return;
+        }
+
+        const isHidden = panel.classList.contains("hidden");
+        panel.classList.toggle("hidden", !isHidden);
+        notificationToggle.setAttribute("aria-expanded", String(isHidden));
+    });
+
+    document.addEventListener("click", (event) => {
+        const panel = document.getElementById("notificationPanel");
+        const toggle = document.getElementById("notificationToggle");
+
+        if (!panel || !toggle) {
+            return;
+        }
+
+        if (!panel.contains(event.target) && !toggle.contains(event.target)) {
+            panel.classList.add("hidden");
+            toggle.setAttribute("aria-expanded", "false");
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        const filterWrapper = event.target.closest(".filter-wrapper");
+        const panel = document.getElementById("product-filters");
+
+        if (!panel) {
+            return;
+        }
+
+        if (!filterWrapper) {
+            panel.classList.add("hidden");
+        }
+    });
+
+    renderNotificationsPanel();
     loadModule("inicio");
 });
