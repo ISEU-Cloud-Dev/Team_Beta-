@@ -4,7 +4,7 @@ anyio==4.14.1
 celery==5.5.3
 click==8.4.2
 fastapi==0.139.0
-greenlet==4.0.4
+greenlet==3.2.3
 h11==0.16.0
 idna==3.18
 psycopg2-binary==2.9.12
