@@ -53,6 +53,21 @@ if (form) {
             }
 
             localStorage.setItem("isAuthenticated", "true");
+
+            const activity = {
+                id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                type: "login",
+                title: "Inicio de sesión",
+                detail: `El usuario ${email} ingresó al sistema correctamente.`,
+                entity: "Seguridad",
+                severity: "success",
+                timestamp: new Date().toISOString()
+            };
+
+            const history = JSON.parse(localStorage.getItem("smart_inventory_activity_log") || "[]");
+            history.unshift(activity);
+            localStorage.setItem("smart_inventory_activity_log", JSON.stringify(history.slice(0, 80)));
+
             window.location.href = data.redirect || "/dashboard";
         } catch (error) {
             document.getElementById("passwordError").textContent = error.message;
