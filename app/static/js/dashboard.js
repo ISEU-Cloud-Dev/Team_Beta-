@@ -1311,8 +1311,126 @@ async function loadModule(module) {
         return;
     }
 
+    if (module === "perfil") {
+    renderPerfilModule();
+    return;
+}
+
     title.innerHTML = module;
     content.innerHTML = `<p>Módulo en construcción.</p>`;
+}
+
+function renderPerfilModule(){
+
+    const content = document.getElementById("main-content");
+    const title = document.getElementById("title");
+
+    title.innerHTML = "Perfil";
+
+    const usuario = JSON.parse(
+        localStorage.getItem("usuarioActual")
+    ) || {
+        nombre:"Administrador",
+        correo:"admin@empresa.com",
+        rol:"Administrador"
+    };
+
+
+    content.innerHTML = `
+
+    <div class="module perfil-module">
+
+        <div class="perfil-header">
+
+            <img 
+            src="https://i.pravatar.cc/120"
+            class="perfil-avatar">
+
+            <div>
+                <h2>${usuario.nombre}</h2>
+                <p>${usuario.correo}</p>
+            </div>
+
+        </div>
+
+
+        <div class="perfil-grid">
+
+
+            <div class="perfil-card">
+
+                <i class="fa-solid fa-user"></i>
+
+                <div>
+                    <span>Nombre</span>
+                    <strong>
+                    ${usuario.nombre}
+                    </strong>
+                </div>
+
+            </div>
+
+
+
+            <div class="perfil-card">
+
+                <i class="fa-solid fa-envelope"></i>
+
+                <div>
+                    <span>Correo</span>
+                    <strong>
+                    ${usuario.correo}
+                    </strong>
+                </div>
+
+            </div>
+
+
+
+            <div class="perfil-card">
+
+                <i class="fa-solid fa-shield"></i>
+
+                <div>
+                    <span>Rol</span>
+                    <strong>
+                    ${usuario.rol}
+                    </strong>
+                </div>
+
+            </div>
+
+
+        </div>
+
+
+        <button 
+        class="btn-primary"
+        id="editProfileBtn">
+
+        <i class="fa-solid fa-pen"></i>
+        Editar información
+
+        </button>
+
+
+    </div>
+
+    `;
+
+
+
+    document
+    .getElementById("editProfileBtn")
+    ?.addEventListener("click",()=>{
+
+        alert(
+        "Aquí podrás modificar los datos del perfil."
+        );
+
+    });
+
+
 }
 
 window.loadModule = loadModule;
